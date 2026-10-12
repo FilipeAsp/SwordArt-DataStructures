@@ -5,105 +5,236 @@
 
 using namespace std;
 
-// PILHA (ANDARES DA MASMORRA)
-const int MAX_MASMORRA = 10;
-int pilhaMasmorra[MAX_MASMORRA];
-int topoMasmorra = -1;
+// Fila e Pilha
 
-void pushMasmorra(int andar)
-{
-    if (topoMasmorra < MAX_MASMORRA - 1)
-    {
-        topoMasmorra++;
-        pilhaMasmorra[topoMasmorra] = andar;
-    }
-}
+const int MAX_VERTICES = 15;
+const int MAX_FILA = 5;
 
-int popMasmorra()
+// Turnos de combate
+class Fila
 {
-    int andarDescartado = -1;
-    if (topoMasmorra >= 0)
-    {
-        andarDescartado = pilhaMasmorra[topoMasmorra];
-        topoMasmorra--;
-    }
-    return andarDescartado;
-}
+private:
+    int vetor[MAX_FILA];
+    int inicio = -1, fim = -1, tamanho = 0;
 
-bool pilhaMasmorraVazia()
-{
-    if (topoMasmorra == -1)
+public:
+    bool vazia()
     {
-        return true;
+        return tamanho == 0;
     }
-    else
+
+    bool cheia()
     {
+        return tamanho == MAX_FILA;
+    }
+
+    void enfila(int valor)
+    {
+        if (!cheia())
+        {
+            fim = (fim + 1) % MAX_FILA;
+            vetor[fim] = valor;
+            tamanho++;
+            if (inicio == -1)
+            {
+                inicio = 0;
+            }
+        }
+    }
+
+    int desenfila()
+    {
+        if (!vazia())
+        {
+            int valor = vetor[inicio];
+            inicio = (inicio + 1) % MAX_FILA;
+            tamanho--;
+            return valor;
+        }
+        return -1;
+    }
+};
+
+// TABELA HASH (Bestiário)
+// Chave: Nome do Monstro (string) | Valor: Atributos do Monstro (Struct)
+
+struct Monstro
+{
+    string nome;
+    int hpBase;
+    int forcaBase;
+    int xpDrop;
+    int goldDrop;
+};
+
+class TabelaHash
+{
+private:
+    static const int MAX = 11;
+
+    struct No
+    {
+        string chave;
+        Monstro valor;
+        No *prox;
+    };
+
+    No *tabelaHash[MAX];
+
+    int funcaoHash(string chave)
+    {
+        int soma = 0;
+        for (int i = 0; i < chave.length(); i++)
+        {
+            soma += chave[i];
+        }
+        return soma % MAX;
+    }
+
+public:
+    TabelaHash()
+    {
+        for (int i = 0; i < MAX; i++)
+        {
+            tabelaHash[i] = NULL;
+        }
+    }
+
+    void inserir(string chave, Monstro valor)
+    {
+        int posicao = funcaoHash(chave);
+        No *temp = tabelaHash[posicao];
+
+        while (temp != NULL)
+        {
+            if (temp->chave == chave)
+            {
+                temp->valor = valor;
+                return;
+            }
+            temp = temp->prox;
+        }
+
+        No *novo = new No;
+        novo->chave = chave;
+        novo->valor = valor;
+        novo->prox = tabelaHash[posicao];
+        tabelaHash[posicao] = novo;
+    }
+
+    Monstro *buscarMonstro(string chave)
+    {
+        int posicao = funcaoHash(chave);
+        No *temp = tabelaHash[posicao];
+
+        while (temp != NULL)
+        {
+            if (temp->chave == chave)
+            {
+                return &(temp->valor);
+            }
+            temp = temp->prox;
+        }
+        return NULL;
+    }
+};
+
+// GRAFO (Mapa do Jogo)
+// Usando Matriz de Adjacências
+
+class Grafo
+{
+private:
+    int numVertices;
+    int matrizAdj[MAX_VERTICES][MAX_VERTICES];
+    string locais[MAX_VERTICES];
+    string monstrosLocais[MAX_VERTICES];
+
+public:
+    Grafo(int n)
+    {
+        if (n > MAX_VERTICES)
+            numVertices = MAX_VERTICES;
+        else
+            numVertices = n;
+
+        for (int i = 0; i < numVertices; i++)
+        {
+            for (int j = 0; j < numVertices; j++)
+            {
+                matrizAdj[i][j] = 0;
+            }
+        }
+    }
+
+    void configurarLocal(int id, string nomeLocal, string chaveMonstro)
+    {
+        if (id >= 0 && id < numVertices)
+        {
+            locais[id] = nomeLocal;
+            monstrosLocais[id] = chaveMonstro;
+        }
+    }
+
+    void adicionarCaminho(int v1, int v2)
+    {
+        if (v1 >= 0 && v1 < numVertices && v2 >= 0 && v2 < numVertices)
+        {
+            matrizAdj[v1][v2] = 1;
+            matrizAdj[v2][v1] = 1;
+        }
+    }
+
+    bool caminhoExiste(int origem, int destino)
+    {
+        if (origem >= 0 && origem < numVertices && destino >= 0 && destino < numVertices)
+        {
+            return matrizAdj[origem][destino] > 0;
+        }
         return false;
     }
-}
 
-// FILA CIRCULAR (TURNOS DE COMBATE)
-const int MAX_FILA = 5;
-int filaCombate[MAX_FILA];
-int inicioFila = -1, fimFila = -1;
-
-void enfila(int element)
-{
-    int prox = (fimFila + 1) % MAX_FILA;
-    if (prox != inicioFila)
+    void mostrarCaminhosPossiveis(int atual)
     {
-        fimFila = prox;
-        filaCombate[fimFila] = element;
-        if (inicioFila == -1)
+        cout << "\n[ Voce esta em: " << locais[atual] << " ]" << endl;
+        cout << "Caminhos disponiveis para viajar:" << endl;
+        for (int j = 0; j < numVertices; j++)
         {
-            inicioFila = 0;
+            if (matrizAdj[atual][j] > 0)
+            {
+                cout << "  -> (" << j << ") " << locais[j];
+                if (monstrosLocais[j] != "Nenhum")
+                {
+                    cout << " [PERIGO]";
+                }
+                cout << endl;
+            }
         }
     }
-}
 
-int desenfila()
-{
-    int element = -1;
-    if (inicioFila >= 0)
+    string getNomeLocal(int id)
     {
-        element = filaCombate[inicioFila];
-        if (inicioFila == fimFila)
-        {
-            inicioFila = -1;
-            fimFila = -1;
-        }
-        else
-        {
-            inicioFila = (inicioFila + 1) % MAX_FILA;
-        }
+        return locais[id];
     }
-    return element;
-}
+
+    string getChaveMonstro(int id)
+    {
+        return monstrosLocais[id];
+    }
+
+    void limparMonstroLocal(int id)
+    {
+        monstrosLocais[id] = "Nenhum";
+    }
+};
+
+// FUNÇÕES AUXILIARES
 
 void pausar()
 {
     cout << "\n> Pressione ENTER para continuar...";
     cin.ignore();
     cin.get();
-}
-
-void menu(string name, int hpMAX, int hp, int xp, int level)
-{
-    system("cls");
-    cout << "==========================================================" << endl;
-    cout << "  JOGADOR: " << name << " | LVL: " << level << " | HP: " << hp << "/" << hpMAX << " | XP: " << xp << endl;
-    cout << "==========================================================" << endl;
-    cout << "           >>> O QUE DESEJA FAZER AGORA? <<<" << endl
-         << endl;
-    cout << "   [ AVENTURA ]                   [ CIDADE ]" << endl;
-    cout << "   1. Explorar Masmorra           3. Descansar na Taverna" << endl;
-    cout << "   2. Treinar na Arena            4. Loja de Itens" << endl;
-    cout << endl;
-    cout << "   [ PERSONAGEM ]                 [ SISTEMA ]" << endl;
-    cout << "   5. Ver Status Detalhado        0. Desistir (Log-out)" << endl;
-    cout << "   6. Abrir Inventario" << endl;
-    cout << "\n==========================================================" << endl;
-    cout << " Escolha sua acao: ";
 }
 
 int levelUp(int xp, int level)
@@ -117,581 +248,246 @@ int levelUp(int xp, int level)
     return level;
 }
 
-void exibirStatus(string name, string className, int hpMAX, int mpMAX, int hp, int mp, int force, int level, int xp, int gold, int potion, int atributos)
+void popularBestiario(TabelaHash &bestiario)
 {
-    cout << "========================================" << endl;
-    cout << "           FICHA DE PERSONAGEM          " << endl;
-    cout << "========================================" << endl;
-    cout << " NOME: " << name << " | CLASSE: " << className << endl;
-    cout << " NIVEL: " << level << "     |  XP: " << xp << endl;
-    cout << "----------------------------------------" << endl;
-    cout << " [ STATUS ]             [ INVENTARIO ]  " << endl;
-    cout << " HP:  " << hp << " / " << hpMAX << "           Gold:  " << gold << endl;
-    cout << " MP:  " << mp << " / " << mpMAX << "           Potions: " << potion << endl;
-    cout << " Forca: " << force << endl;
-    cout << " Atributos: " << atributos << endl;
-    cout << "========================================" << endl;
+    bestiario.inserir("Lobo Gigante", {"Lobo Gigante", 40, 10, 30, 10});
+    bestiario.inserir("Goblin", {"Goblin Mago", 60, 15, 50, 25});
+    bestiario.inserir("Orc", {"Orc Guerreiro", 100, 25, 80, 50});
+    bestiario.inserir("Dragao", {"Dragao Anciao", 300, 40, 300, 200});
 }
 
-void exibirLoja(int gold)
+void popularMapa(Grafo &mapa)
 {
-    cout << "==========================================================" << endl;
-    cout << "         MERCADO DO VIAJANTE - SWORD ART WORLD            " << endl;
-    cout << "==========================================================" << endl;
-    cout << "  Seu Ouro: " << gold << "g" << endl;
-    cout << "----------------------------------------------------------" << endl;
-    cout << "  ITEM                     | PRECO | DESCRICAO            " << endl;
-    cout << "---------------------------|-------|----------------------" << endl;
-    cout << "  1. Pocao de Vida (P)     |  20g  | Recupera 20 HP       " << endl;
-    cout << "  2. Pocao de Vida (G)     |  50g  | Recupera 60 HP       " << endl;
-    cout << "  3. Pocao de Mana         |  30g  | Recupera 30 MP       " << endl;
-    cout << "  4. Elixir de XP (P)      |  40g  | +50 pontos de XP     " << endl;
-    cout << "  5. Elixir de XP (G)      | 100g  | +150 pontos de XP    " << endl;
-    cout << "  0. Sair da Loja          |   -   | Voltar ao menu       " << endl;
-    cout << "==========================================================" << endl;
-    cout << " O que deseja comprar? (Digite o numero correspondente): ";
+
+    mapa.configurarLocal(0, "Vila Segura", "Nenhum");
+    mapa.configurarLocal(1, "Floresta Escura", "Lobo Gigante");
+    mapa.configurarLocal(2, "Caverna Umida", "Goblin");
+    mapa.configurarLocal(3, "Acampamento Inimigo", "Orc");
+    mapa.configurarLocal(4, "Covil do Dragao", "Dragao");
+
+    mapa.adicionarCaminho(0, 1); // Vila <-> Floresta
+    mapa.adicionarCaminho(1, 2); // Floresta <-> Caverna
+    mapa.adicionarCaminho(1, 3); // Floresta <-> Acampamento
+    mapa.adicionarCaminho(2, 4); // Caverna <-> Covil
+    mapa.adicionarCaminho(3, 4); // Acampamento <-> Covil
 }
 
-void inventario(int gold, int potionHP, int potionMP, int potionXP)
-{
-    cout << "===============================\n"
-         << "         INVENTARIO          \n"
-         << "===============================" << endl;
-    cout << " Ouro: " << gold << "g" << endl;
-    cout << " 1 - Pocao de Vida: " << potionHP << endl;
-    cout << " 2 - Pocao de Mana: " << potionMP << endl;
-    cout << " 3 - Elixir de XP: " << potionXP << endl;
-    cout << " 0 - Fechar Mochila" << endl;
-    cout << "===============================" << endl;
-    cout << "Qual item deseja usar? ";
-}
-
-void disconnect(string name)
-{
-    cout << "================================================" << endl;
-    cout << " [!] DESCONECTANDO DO SWORD ART WORLD...        " << endl;
-    cout << "================================================" << endl;
-    cout << "\n Bravo(a) " << name << ", suas conquistas serao lembradas." << endl;
-    cout << " As lendas do reino aguardam seu retorno!" << endl;
-    cout << "\n Ate a proxima aventura, heroi." << endl;
-    cout << "================================================" << endl;
-}
+// MAIN
 
 int main()
 {
     srand(time(0));
 
-    for (int i = MAX_MASMORRA; i >= 1; i--) // Inicializando a Pilha da Masmorra com os andares de 10 a 1 (topo é o 1)
-    {
-        pushMasmorra(i);
-    }
+    TabelaHash bestiario;
+    popularBestiario(bestiario);
 
-    string name, className;
-    int hp, mp, force, level = 1, gold = 50, potion = 0, xp = 0;
-    int hpMAX, mpMAX, atributos = 0, potionHP = 0, potionMP = 0, potionXP = 0;
+    Grafo mapa(5);
+    popularMapa(mapa);
+
+    string nome, classe;
+    int hp, hpMAX, force, level = 1, gold = 50, xp = 0, pocaoHP = 2;
+    int localAtual = 0;
 
     system("cls");
     cout << "===============================\n"
-         << "   BEM VINDO AO SWORD ART!     \n"
+         << "     RPG MEDIEVAL MAGICO       \n"
          << "===============================" << endl;
     cout << "Digite o nome do seu heroi: ";
-    cin >> name;
+    cin >> nome;
 
-    int option;
+    int opcaoClasse;
     do
     {
         system("cls");
-        cout << "===============================\n"
-             << "       Escolha de classe     \n"
-             << "==============================="
-             << "\n1. Guerreiro (Forca)"
-             << "\n2. Mago (Magia)"
-             << "\n3. Arqueiro (Equilibrio)"
-             << "\n===============================" << endl;
+        cout << "Escolha sua classe:\n1. Guerreiro (Foco HP)\n2. Mago (Dano Alto)\nOpcao: ";
+        cin >> opcaoClasse;
 
-        cout << "Opcao: ";
-        cin >> option;
-
-        if (option == 1)
+        if (opcaoClasse == 1)
         {
-            className = "Guerreiro";
+            classe = "Guerreiro";
+            hpMAX = 100;
+            force = 20;
         }
-        else if (option == 2)
+        else if (opcaoClasse == 2)
         {
-            className = "Mago";
-        }
-        else if (option == 3)
-        {
-            className = "Arqueiro";
+            classe = "Mago";
+            hpMAX = 60;
+            force = 35;
         }
         else
         {
-            cout << "Opçao invalida." << endl;
+            cout << "Opçao invalida.";
             pausar();
         }
-    } while (option != 1 && option != 2 && option != 3);
-
-    if (className == "Guerreiro")
-    {
-        hpMAX = (rand() % 20) + 70;
-        mpMAX = (rand() % 20) + 20;
-        force = (rand() % 10) + 20;
-    }
-    else if (className == "Mago")
-    {
-        hpMAX = (rand() % 20) + 50;
-        mpMAX = (rand() % 20) + 40;
-        force = (rand() % 10) + 10;
-    }
-    else
-    {
-        hpMAX = (rand() % 20) + 60;
-        mpMAX = (rand() % 20) + 30;
-        force = (rand() % 10) + 10;
-    }
+    } while (opcaoClasse != 1 && opcaoClasse != 2);
 
     hp = hpMAX;
-    mp = mpMAX;
+    bool jogando = true;
 
-    system("cls");
-    exibirStatus(name, className, hpMAX, mpMAX, hp, mp, force, level, xp, gold, potion, atributos);
-    pausar();
-
-    option = 0;
-    do
+    while (jogando)
     {
-        menu(name, hpMAX, hp, xp, level);
-        cin >> option;
+        system("cls");
+        cout << "==========================================================" << endl;
+        cout << " JOGADOR: " << nome << " | LVL: " << level << " | HP: " << hp << "/" << hpMAX << " | OURO: " << gold << "g" << endl;
+        cout << " LOCAL ATUAL: " << mapa.getNomeLocal(localAtual) << endl;
+        cout << "==========================================================" << endl;
+        cout << " 1. Viajar (Usar Grafo)" << endl;
+        cout << " 2. Descansar (Custa 10g - Apenas na Vila)" << endl;
+        cout << " 3. Comprar Pocao (Custa 20g)" << endl;
+        cout << " 0. Sair do Jogo" << endl;
+        cout << "==========================================================" << endl;
+        cout << " Escolha: ";
 
-        switch (option)
+        int escolha;
+        cin >> escolha;
+
+        switch (escolha)
         {
-        case 1: // Masmorra
+        case 1:
         {
             system("cls");
-            if (pilhaMasmorraVazia() != true)
+            mapa.mostrarCaminhosPossiveis(localAtual);
+            cout << "Digite o numero do destino (ou -1 para cancelar): ";
+            int destino;
+            cin >> destino;
+
+            if (destino == -1)
+                break;
+
+            if (!mapa.caminhoExiste(localAtual, destino))
             {
-                int andarAtual = pilhaMasmorra[topoMasmorra];
-                if (level < andarAtual)
-                {
-                    cout << "[!] Nivel insuficiente para o Andar " << andarAtual << "!" << endl;
-                    cout << "Treine na Arena primeiro." << endl;
-                    pausar();
-                    break;
-                }
-
-                inicioFila = -1;
-                fimFila = -1;
-
-                enfila(1);
-                enfila(2);
-
-                // Geração dos stats do monstro com base no andar atual
-                int mHP = (rand() % 30) + (andarAtual * 20);
-                int mForca = (rand() % 5) + (andarAtual * 5);
-
-                cout << "=== BATALHA: ANDAR " << andarAtual << " ===" << endl;
-                cout << "Um Monstro de Rank " << andarAtual << " bloqueia o caminho!" << endl;
+                cout << "\n[!] Caminho bloqueado ou inexistente!" << endl;
                 pausar();
+                break;
+            }
 
-                while (hp > 0 && mHP > 0)
+            localAtual = destino;
+            cout << "\nVoce chegou em: " << mapa.getNomeLocal(localAtual) << endl;
+            pausar();
+
+            string chave = mapa.getChaveMonstro(localAtual);
+            if (chave != "Nenhum")
+            {
+                Monstro *monstro = bestiario.buscarMonstro(chave);
+
+                if (monstro != NULL)
                 {
                     system("cls");
-                    int atual = desenfila();
+                    cout << "=== BATALHA INICIADA ===" << endl;
+                    cout << "Um(a) " << monstro->nome << " selvagem ataca voce!" << endl;
+                    pausar();
 
-                    cout << "------------------------------------------" << endl;
-                    cout << " SUA VIDA: " << hp << "/" << hpMAX << " | VIDA MONSTRO: " << mHP << endl;
-                    cout << "------------------------------------------" << endl;
+                    int mHP = monstro->hpBase;
+                    Fila turnos;
+                    turnos.enfila(1);
+                    turnos.enfila(2);
 
-                    if (atual == 1) // TURNO DO JOGADOR
+                    while (hp > 0 && mHP > 0)
                     {
-                        int opcaoTurno;
-                        int opcaoItem;
+                        system("cls");
+                        int turnoAtual = turnos.desenfila();
 
-                        do
+                        if (turnoAtual == 1)
                         {
-                            system("cls");
-                            cout << "------------------------------------------" << endl;
-                            cout << " SUA VIDA: " << hp << "/" << hpMAX << " | VIDA MONSTRO: " << mHP << endl;
-                            cout << "------------------------------------------" << endl;
-                            cout << ">>> SEU TURNO!" << endl;
-                            cout << "1. Atacar\n2. Abrir Inventario" << endl;
+                            cout << "--- SEU TURNO ---" << endl;
+                            cout << "HP: " << hp << "/" << hpMAX << " | INIMIGO HP: " << mHP << "/" << monstro->hpBase << endl;
+                            cout << "1. Atacar\n2. Usar Pocao (" << pocaoHP << ")\nEscolha: ";
+                            int acao;
+                            cin >> acao;
 
-                            cin >> opcaoTurno;
-
-                            switch (opcaoTurno)
-                            {
-                            case 1:
+                            if (acao == 1)
                             {
                                 int dano = (rand() % 10) + force;
                                 mHP -= dano;
-                                cout << "\nVoce atacou e causou " << dano << " de dano!" << endl;
-                                pausar();
-                                break;
+                                cout << "Voce causou " << dano << " de dano!" << endl;
                             }
-                            case 2:
+                            else if (acao == 2 && pocaoHP > 0)
                             {
-                                system("cls");
-                                inventario(gold, potionHP, potionMP, potionXP);
-                                cin >> opcaoItem;
-
-                                switch (opcaoItem)
-                                {
-                                case 1:
-                                    if (potionHP > 0)
-                                    {
-                                        potionHP -= 1;
-                                        potion -= 1;
-                                        int antes = hp;
-                                        hp += 20;
-                                        if (hp > hpMAX)
-                                            hp = hpMAX;
-                                        cout << "\nVoce usou uma Pocao de Vida! HP recuperado: " << (hp - antes) << endl;
-                                    }
-                                    else
-                                    {
-                                        cout << "\nVoce nao tem Pocao de Vida." << endl;
-                                        opcaoTurno = 0;
-                                    }
-                                    break;
-                                case 2:
-                                    if (potionMP > 0)
-                                    {
-                                        potionMP -= 1;
-                                        potion -= 1;
-                                        int antes = mp;
-                                        mp += 30;
-                                        if (mp > mpMAX)
-                                            mp = mpMAX;
-                                        cout << "\nVoce usou uma Pocao de Mana! MP recuperado: " << (mp - antes) << endl;
-                                    }
-                                    else
-                                    {
-                                        cout << "\nVoce nao tem Pocao de Mana." << endl;
-                                        opcaoTurno = 0;
-                                    }
-                                    break;
-                                case 3:
-                                    if (potionXP > 0)
-                                    {
-                                        potionXP -= 1;
-                                        potion -= 1;
-                                        xp += 50;
-                                        cout << "\nVoce usou um Elixir de XP! XP ganho: 50" << endl;
-                                        level = levelUp(xp, level);
-                                    }
-                                    else
-                                    {
-                                        cout << "\nVoce nao tem Elixir de XP." << endl;
-                                        opcaoTurno = 0;
-                                    }
-                                    break;
-                                case 0:
-                                    cout << "\nVoce fechou a mochila sem usar nada." << endl;
-                                    opcaoTurno = 0;
-                                    break;
-                                default:
-                                    cout << "\nOpcao de item invalida!" << endl;
-                                    opcaoTurno = 0;
-                                    break;
-                                }
-                                pausar();
-                                break;
+                                pocaoHP--;
+                                hp += 40;
+                                if (hp > hpMAX)
+                                    hp = hpMAX;
+                                cout << "Voce recuperou 40 HP!" << endl;
                             }
-                            default:
-                                cout << "\nAcao invalida! Tente novamente." << endl;
-                                opcaoTurno = 0;
-                                pausar();
-                                break;
+                            else
+                            {
+                                cout << "Falhou!" << endl;
                             }
-
-                        } while (opcaoTurno != 1 && opcaoTurno != 2);
-
-                        enfila(1); // Fim do turno, devolve o jogador para a fila
+                            pausar();
+                            turnos.enfila(1);
+                        }
+                        else
+                        {
+                            cout << "--- TURNO DO INIMIGO ---" << endl;
+                            int danoM = (rand() % 5) + monstro->forcaBase;
+                            hp -= danoM;
+                            cout << "O " << monstro->nome << " causou " << danoM << " de dano!" << endl;
+                            pausar();
+                            turnos.enfila(2);
+                        }
                     }
-                    else // TURNO DO MONSTRO
+
+                    if (hp > 0)
                     {
-                        int dano = (rand() % 5) + mForca;
-                        hp -= dano;
-                        cout << "\nO monstro atacou e causou " << dano << " de dano!" << endl;
-                        pausar();
-                        enfila(2); // Fim do turno, devolve o monstro para a fila
+                        cout << "\n[VITORIA] Voce derrotou o " << monstro->nome << "!" << endl;
+                        xp += monstro->xpDrop;
+                        gold += monstro->goldDrop;
+                        level = levelUp(xp, level);
+                        mapa.limparMonstroLocal(localAtual);
+
+                        if (localAtual == 4)
+                        {
+                            cout << "\n*** PARABENS! VOCE MATOU O DRAGAO E ZEROU O JOGO! ***" << endl;
+                            jogando = false;
+                        }
                     }
+                    else
+                    {
+                        cout << "\n[DERROTA] Voce desmaiou e foi levado de volta a Vila..." << endl;
+                        localAtual = 0;
+                        hp = 1;
+                    }
+                    pausar();
                 }
-
-                // Resultado da Batalha (POP DA MASMORRA)
-                if (hp > 0)
-                {
-                    system("cls");
-                    cout << "\n[VITORIA] Voce derrotou o monstro!" << endl;
-                    int gXP = 50 + (andarAtual * 10);
-                    int gGold = 20 + (andarAtual * 5);
-                    xp += gXP;
-                    gold += gGold;
-
-                    cout << "Ganhos: +" << gXP << " XP | +" << gGold << " Gold" << endl;
-
-                    popMasmorra();
-                    cout << "\n[SISTEMA] POP executado! Andar " << andarAtual << " concluido e removido da Masmorra." << endl;
-
-                    level = levelUp(xp, level);
-                }
-                else
-                {
-                    system("cls");
-                    cout << "\n[DERROTA] Voce desmaiou de dor e foi resgatado..." << endl;
-                    hp = 1;
-                }
-                pausar();
+            }
+            break;
+        }
+        case 2:
+            if (localAtual != 0)
+            {
+                cout << "\nVoce so pode descansar com seguranca na Vila Segura!" << endl;
+            }
+            else if (gold >= 10)
+            {
+                gold -= 10;
+                hp = hpMAX;
+                cout << "\nVoce descansou na taverna e recuperou todo seu HP!" << endl;
             }
             else
             {
-                cout << "[!] Parabens! A MASMORRA esta vazia! Voce conquistou o topo de SWORD ART WORLD!" << endl;
-                pausar();
+                cout << "\nOuro insuficiente!" << endl;
             }
-            break;
-        }
-
-        case 2: // ARENA DE TREINO
-        {
-            system("cls");
-            cout << "========================================" << endl;
-            cout << "          ARENA DE TREINAMENTO          " << endl;
-            cout << "========================================" << endl;
-            cout << "Voce passa horas lutando contra bonecos de madeira..." << endl;
-
-            int xpGanho = (rand() % 15) + 10;
-            xp += xpGanho;
-
-            cout << "\nO treinamento valeu a pena! Voce ganhou " << xpGanho << " de XP." << endl;
-            level = levelUp(xp, level);
             pausar();
             break;
-        }
-
-        case 3: // TAVERNA (PUSH DA MASMORRA)
-        {
-            system("cls");
-            cout << "================================================" << endl;
-            cout << "              TAVERNA DO LIMAO E MEL            " << endl;
-            cout << "================================================" << endl;
-            cout << " Voce aluga um quarto e descansa profundamente..." << endl;
-            cout << " . . . . . . . . . . . . . . . . . . . . . . . ." << endl;
-
-            int recuperouHP = 0;
-            int recuperouMP = 0;
-
-            if (hp < hpMAX)
+        case 3:
+            if (gold >= 20)
             {
-                int antes = hp;
-                hp += 30;
-                if (hp > hpMAX)
-                    hp = hpMAX;
-                recuperouHP = hp - antes;
+                gold -= 20;
+                pocaoHP++;
+                cout << "\nVoce comprou uma Pocao de HP!" << endl;
             }
-            if (mp < mpMAX)
+            else
             {
-                int antes = mp;
-                mp += 10;
-                if (mp > mpMAX)
-                    mp = mpMAX;
-                recuperouMP = mp - antes;
+                cout << "\nOuro insuficiente!" << endl;
             }
-
-            cout << "\n [RESTAURACAO CONCLUIDA]" << endl;
-            if (recuperouHP > 0)
-                cout << "  + " << recuperouHP << " HP recuperado." << endl;
-            if (recuperouMP > 0)
-                cout << "  + " << recuperouMP << " MP recuperado." << endl;
-            if (recuperouHP == 0 && recuperouMP == 0)
-                cout << "  Voce ja estava com energia total." << endl;
-
-            cout << "\n Status Atual: HP [" << hp << "/" << hpMAX << "] | MP [" << mp << "/" << mpMAX << "]" << endl;
-            cout << "------------------------------------------------" << endl;
-            cout << " Voce acorda sentindo-se revigorado!" << endl;
-
-            int andarRetomado = -1;
-            if (pilhaMasmorraVazia() == true)
-            {
-                andarRetomado = MAX_MASMORRA;
-            }
-            else if (pilhaMasmorra[topoMasmorra] > 1)
-            {
-                andarRetomado = pilhaMasmorra[topoMasmorra] - 1;
-            }
-
-            if (andarRetomado > 0 && topoMasmorra < MAX_MASMORRA - 1)
-            {
-                pushMasmorra(andarRetomado);
-                cout << "\n [!!!] AVISO: Enquanto voce dormia, monstros deram PUSH e retomaram o Andar " << andarRetomado << "!" << endl;
-            }
-            cout << "================================================" << endl;
             pausar();
             break;
-        }
-
-        case 4: // LOJA
-        {
-            int compra;
-            do
-            {
-                system("cls");
-                exibirLoja(gold);
-                cin >> compra;
-                switch (compra)
-                {
-                case 1:
-                    if (gold >= 20)
-                    {
-                        gold -= 20;
-                        potion += 1;
-                        potionHP += 1;
-                        cout << "\nVoce comprou uma Pocao de Vida (P)!" << endl;
-                    }
-                    else
-                        cout << "\nOuro insuficiente." << endl;
-                    pausar();
-                    break;
-                case 2:
-                    if (gold >= 50)
-                    {
-                        gold -= 50;
-                        potion += 3;
-                        potionHP += 3;
-                        cout << "\nVoce comprou uma Pocao de Vida (G)!" << endl;
-                    }
-                    else
-                        cout << "\nOuro insuficiente." << endl;
-                    pausar();
-                    break;
-                case 3:
-                    if (gold >= 30)
-                    {
-                        gold -= 30;
-                        potion += 1;
-                        potionMP += 1;
-                        cout << "\nVoce comprou uma Pocao de Mana!" << endl;
-                    }
-                    else
-                        cout << "\nOuro insuficiente." << endl;
-                    pausar();
-                    break;
-                case 4:
-                    if (gold >= 40)
-                    {
-                        gold -= 40;
-                        potion += 1;
-                        potionXP += 1;
-                        cout << "\nVoce comprou um Elixir de XP (P)!" << endl;
-                    }
-                    else
-                        cout << "\nOuro insuficiente." << endl;
-                    pausar();
-                    break;
-                case 5:
-                    if (gold >= 100)
-                    {
-                        gold -= 100;
-                        potion += 3;
-                        potionXP += 3;
-                        cout << "\nVoce comprou um Elixir de XP (G)!" << endl;
-                    }
-                    else
-                        cout << "\nOuro insuficiente." << endl;
-                    pausar();
-                    break;
-                case 0:
-                    cout << "\nSaindo da loja..." << endl;
-                    break;
-                default:
-                    cout << "\nItem invalido." << endl;
-                    pausar();
-                }
-            } while (compra != 0);
+        case 0:
+            jogando = false;
             break;
         }
+    }
 
-        case 5: // STATUS
-        {
-            system("cls");
-            exibirStatus(name, className, hpMAX, mpMAX, hp, mp, force, level, xp, gold, potion, atributos);
-            pausar();
-            break;
-        }
-
-        case 6: // INVENTARIO
-        {
-            system("cls");
-            inventario(gold, potionHP, potionMP, potionXP);
-            int usar;
-            cin >> usar;
-            switch (usar)
-            {
-            case 1:
-                if (potionHP > 0)
-                {
-                    potionHP -= 1;
-                    potion -= 1;
-                    int antes = hp;
-                    hp += 20;
-                    if (hp > hpMAX)
-                        hp = hpMAX;
-                    cout << "\nVoce usou uma Pocao de Vida! HP recuperado: " << (hp - antes) << endl;
-                }
-                else
-                    cout << "\nVoce nao tem Pocao de Vida." << endl;
-                pausar();
-                break;
-            case 2:
-                if (potionMP > 0)
-                {
-                    potionMP -= 1;
-                    potion -= 1;
-                    int antes = mp;
-                    mp += 30;
-                    if (mp > mpMAX)
-                        mp = mpMAX;
-                    cout << "\nVoce usou uma Pocao de Mana! MP recuperado: " << (mp - antes) << endl;
-                }
-                else
-                    cout << "\nVoce nao tem Pocao de Mana." << endl;
-                pausar();
-                break;
-            case 3:
-                if (potionXP > 0)
-                {
-                    potionXP -= 1;
-                    potion -= 1;
-                    xp += 50;
-                    cout << "\nVoce usou um Elixir de XP! XP ganho: 50" << endl;
-                    level = levelUp(xp, level);
-                }
-                else
-                    cout << "\nVoce nao tem Elixir de XP." << endl;
-                pausar();
-                break;
-            case 0:
-                break;
-            default:
-                cout << "\nOpcao invalida." << endl;
-                pausar();
-            }
-            break;
-        }
-
-        case 0: // DESISTIR
-        {
-            system("cls");
-            disconnect(name);
-            break;
-        }
-
-        default:
-            cout << "\nOpcao invalida. Por favor, escolha uma opçao valida." << endl;
-            pausar();
-            break;
-        }
-
-    } while (option != 0);
-
+    cout << "\nObrigado por jogar!" << endl;
     return 0;
 }
